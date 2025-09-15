@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { ArrowLeft, Upload, Camera, RotateCcw, Zap } from "lucide-react";
+import { ArrowLeft, Upload, Camera, RotateCcw, Zap, Bluetooth, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,9 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanComplete, setScanComplete] = useState(false);
   const [scanResults, setScanResults] = useState(null);
+  const [sensorConnected, setSensorConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionStep, setConnectionStep] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -46,21 +49,66 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
     }
   };
 
+  const handleSensorConnect = () => {
+    setIsConnecting(true);
+    const steps = [
+      "Initializing connection...",
+      "Detecting BioScanner device...",
+      "Establishing Bluetooth link...",
+      "Calibrating sensors...",
+      "Connection established"
+    ];
+    
+    let stepIndex = 0;
+    const stepInterval = setInterval(() => {
+      setConnectionStep(steps[stepIndex]);
+      stepIndex++;
+      
+      if (stepIndex >= steps.length) {
+        clearInterval(stepInterval);
+        setTimeout(() => {
+          setIsConnecting(false);
+          setSensorConnected(true);
+          setConnectionStep("");
+        }, 500);
+      }
+    }, 800);
+  };
+
   const handleScanStart = () => {
     if (!selectedSample && !uploadedImage) return;
+    if (!sensorConnected) return;
     
     setIsScanning(true);
     setScanComplete(false);
     
-    // Simulate scanning process
-    setTimeout(() => {
-      setIsScanning(false);
-      setScanComplete(true);
+    // Simulate scanning process with sensor steps
+    const scanSteps = [
+      "Initializing bio-sensors...",
+      "Analyzing bacterial presence...",
+      "Detecting toxin levels...",
+      "Processing nutrient data...",
+      "Finalizing analysis..."
+    ];
+    
+    let stepIndex = 0;
+    const stepInterval = setInterval(() => {
+      setConnectionStep(scanSteps[stepIndex]);
+      stepIndex++;
       
-      // Generate mock results based on selected sample
-      const results = generateMockResults(selectedSample || "uploaded");
-      setScanResults(results);
-    }, 3000);
+      if (stepIndex >= scanSteps.length) {
+        clearInterval(stepInterval);
+        setTimeout(() => {
+          setIsScanning(false);
+          setScanComplete(true);
+          setConnectionStep("");
+          
+          // Generate mock results based on selected sample
+          const results = generateMockResults(selectedSample || "uploaded");
+          setScanResults(results);
+        }, 500);
+      }
+    }, 600);
   };
 
   const generateMockResults = (sampleType: string) => {
@@ -147,6 +195,9 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
     setIsScanning(false);
     setScanComplete(false);
     setScanResults(null);
+    setSensorConnected(false);
+    setIsConnecting(false);
+    setConnectionStep("");
   };
 
   const currentImage = uploadedImage || (selectedSample ? SAMPLE_FOODS.find(f => f.id === selectedSample)?.image : null);
@@ -291,25 +342,68 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
                 </div>
                 
                 <div className="mt-6 space-y-4">
-                  <Button
-                    variant="scan"
-                    size="lg"
-                    onClick={handleScanStart}
-                    disabled={!currentImage || isScanning}
-                    className="w-full"
-                  >
-                    {isScanning ? (
-                      <>
-                        <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
-                        Scanning... 
-                      </>
-                    ) : (
-                      <>
-                        <Zap className="w-5 h-5" />
-                        Start Bio-Analysis
-                      </>
-                    )}
-                  </Button>
+                  {/* Sensor Connection Status */}
+                  <div className={`p-3 rounded-lg border-2 ${
+                    sensorConnected 
+                      ? "border-success bg-success/10" 
+                      : "border-warning bg-warning/10"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {sensorConnected ? (
+                        <>
+                          <CheckCircle className="w-5 h-5 text-success" />
+                          <span className="text-success font-medium">BioScanner Connected</span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertCircle className="w-5 h-5 text-warning" />
+                          <span className="text-warning font-medium">Sensor Disconnected</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {!sensorConnected ? (
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      onClick={handleSensorConnect}
+                      disabled={isConnecting}
+                      className="w-full"
+                    >
+                      {isConnecting ? (
+                        <>
+                          <div className="animate-spin w-5 h-5 border-2 border-current border-t-transparent rounded-full" />
+                          Connecting...
+                        </>
+                      ) : (
+                        <>
+                          <Bluetooth className="w-5 h-5" />
+                          Connect BioScanner
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="scan"
+                      size="lg"
+                      onClick={handleScanStart}
+                      disabled={!currentImage || isScanning}
+                      className="w-full"
+                    >
+                      {isScanning ? (
+                        <>
+                          <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+                          Scanning... 
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-5 h-5" />
+                          Start Bio-Analysis
+                        </>
+                      )}
+                    </Button>
+                  )}
                   
                   <Button
                     variant="outline"
@@ -323,26 +417,43 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
               </CardContent>
             </Card>
 
-            {isScanning && (
+            {(isScanning || isConnecting) && (
               <Card className="shadow-card result-appear">
                 <CardHeader>
-                  <CardTitle className="text-lg">Scanning Progress</CardTitle>
+                  <CardTitle className="text-lg">
+                    {isConnecting ? "Sensor Connection" : "Scanning Progress"}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span>Bacteria Detection</span>
-                      <span className="text-success">Complete</span>
+                  {connectionStep && (
+                    <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
+                        <span className="text-sm font-medium">{connectionStep}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Toxin Analysis</span>
-                      <span className="text-warning">Processing...</span>
+                  )}
+                  
+                  {isScanning && (
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span>Sensor Calibration</span>
+                        <span className="text-success">Complete</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Bacteria Detection</span>
+                        <span className="text-success">Complete</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Toxin Analysis</span>
+                        <span className="text-warning">Processing...</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Nutrient Profile</span>
+                        <span className="text-muted-foreground">Pending</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Nutrient Profile</span>
-                      <span className="text-muted-foreground">Pending</span>
-                    </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             )}
