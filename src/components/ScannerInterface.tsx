@@ -29,13 +29,18 @@ const SAMPLE_FOODS = [
 const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
   const [selectedSample, setSelectedSample] = useState<string | null>(null);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [cameraImage, setCameraImage] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scanComplete, setScanComplete] = useState(false);
   const [scanResults, setScanResults] = useState(null);
   const [sensorConnected, setSensorConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStep, setConnectionStep] = useState("");
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -44,9 +49,54 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
       reader.onload = (e) => {
         setUploadedImage(e.target?.result as string);
         setSelectedSample(null);
+        setCameraImage(null);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const openCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } // Use back camera on mobile
+      });
+      setStream(mediaStream);
+      setIsCameraOpen(true);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      alert('Unable to access camera. Please ensure camera permissions are granted.');
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      
+      if (ctx) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        
+        const imageData = canvas.toDataURL('image/jpeg');
+        setCameraImage(imageData);
+        setSelectedSample(null);
+        setUploadedImage(null);
+        closeCamera();
+      }
+    }
+  };
+
+  const closeCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setIsCameraOpen(false);
   };
 
   const handleSensorConnect = () => {
@@ -103,8 +153,9 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
           setScanComplete(true);
           setConnectionStep("");
           
-          // Generate mock results based on selected sample
-          const results = generateMockResults(selectedSample || "uploaded");
+          // Generate mock results based on selected sample or camera
+          const sampleType = cameraImage ? "camera" : (selectedSample || "uploaded");
+          const results = generateMockResults(sampleType);
           setScanResults(results);
         }, 500);
       }
@@ -118,6 +169,41 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
       overall: "safe", // safe, caution, danger
       confidence: 0.95
     };
+
+    // Simulate mold detection for camera captures
+    if (sampleType === "camera") {
+      const hasMold = Math.random() > 0.7; // 30% chance of detecting mold
+      return {
+        ...baseResults,
+        overall: hasMold ? "danger" : "safe",
+        confidence: hasMold ? 0.89 : 0.94,
+        bacteria: {
+          detected: hasMold,
+          confidence: hasMold ? 0.89 : 0.95,
+          pathogens: hasMold ? ["Aspergillus niger", "Penicillium"] : []
+        },
+        mold: {
+          detected: hasMold,
+          confidence: hasMold ? 0.91 : 0.96,
+          types: hasMold ? ["Surface mold", "Fuzzy growth"] : [],
+          severity: hasMold ? "moderate" : "none",
+          coverage: hasMold ? "15%" : "0%"
+        },
+        toxins: {
+          detected: hasMold,
+          level: hasMold ? "high" : "none",
+          types: hasMold ? ["Mycotoxins", "Aflatoxins"] : [],
+          concentration: hasMold ? 0.12 : 0
+        },
+        nutrients: {
+          healthScore: hasMold ? 15 : 82,
+          vitamins: { C: hasMold ? 5 : 67, A: hasMold ? 3 : 34, K: hasMold ? 2 : 28 },
+          minerals: { Iron: hasMold ? 8 : 45, Magnesium: hasMold ? 6 : 38 },
+          fiber: hasMold ? 2 : 18,
+          protein: hasMold ? 4 : 22
+        }
+      };
+    }
 
     if (sampleType === "apple") {
       return {
@@ -192,15 +278,17 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
   const resetScanner = () => {
     setSelectedSample(null);
     setUploadedImage(null);
+    setCameraImage(null);
     setIsScanning(false);
     setScanComplete(false);
     setScanResults(null);
     setSensorConnected(false);
     setIsConnecting(false);
     setConnectionStep("");
+    closeCamera();
   };
 
-  const currentImage = uploadedImage || (selectedSample ? SAMPLE_FOODS.find(f => f.id === selectedSample)?.image : null);
+  const currentImage = cameraImage || uploadedImage || (selectedSample ? SAMPLE_FOODS.find(f => f.id === selectedSample)?.image : null);
 
   if (scanComplete && scanResults) {
     return (
@@ -247,16 +335,29 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
                   ref={fileInputRef}
                   className="hidden"
                 />
-                <Button 
-                  variant="outline" 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full h-32 border-2 border-dashed border-border hover:border-primary/50"
-                >
-                  <div className="text-center space-y-2">
-                    <Camera className="w-8 h-8 mx-auto text-muted-foreground" />
-                    <span>Click to upload image</span>
-                  </div>
-                </Button>
+                <div className="grid grid-cols-2 gap-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-32 border-2 border-dashed border-border hover:border-primary/50"
+                  >
+                    <div className="text-center space-y-2">
+                      <Upload className="w-6 h-6 mx-auto text-muted-foreground" />
+                      <span className="text-sm">Upload Image</span>
+                    </div>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    onClick={openCamera}
+                    className="h-32 border-2 border-dashed border-border hover:border-primary/50"
+                  >
+                    <div className="text-center space-y-2">
+                      <Camera className="w-6 h-6 mx-auto text-muted-foreground" />
+                      <span className="text-sm">Use Camera</span>
+                    </div>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -460,6 +561,53 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
           </div>
         </div>
       </div>
+
+      {/* Camera Modal */}
+      {isCameraOpen && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-background rounded-lg p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Camera Scanner</h3>
+              <Button variant="ghost" onClick={closeCamera} className="p-2">
+                ✕
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="relative aspect-square bg-black rounded-lg overflow-hidden">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-4 border-2 border-primary/50 rounded-lg">
+                  <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary"></div>
+                  <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary"></div>
+                  <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary"></div>
+                  <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary"></div>
+                </div>
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-primary text-sm font-medium">
+                  Position food sample in frame
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={closeCamera} className="flex-1">
+                  Cancel
+                </Button>
+                <Button onClick={capturePhoto} className="flex-1">
+                  <Camera className="w-4 h-4 mr-2" />
+                  Capture
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden canvas for photo capture */}
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 };
