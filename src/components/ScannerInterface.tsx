@@ -27,6 +27,7 @@ const SAMPLE_FOODS = [
 ];
 
 const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
+  const [scanMode, setScanMode] = useState<'mold' | 'bacteria'>('mold');
   const [selectedSample, setSelectedSample] = useState<string | null>(null);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [cameraImage, setCameraImage] = useState<string | null>(null);
@@ -38,6 +39,7 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
   const [connectionStep, setConnectionStep] = useState("");
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [hasSample, setHasSample] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -135,14 +137,26 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
   };
 
   const handleScanStart = () => {
-    if (!selectedSample && !uploadedImage) return;
+    // For mold mode, require image. For bacteria mode, just need sensor and sample
+    if (scanMode === 'mold' && !selectedSample && !uploadedImage && !cameraImage) return;
+    if (scanMode === 'bacteria' && !hasSample) return;
     if (!sensorConnected) return;
     
     setIsScanning(true);
     setScanComplete(false);
     
-    // Simulate scanning process with hardware/software syncing
-    const scanSteps = [
+    // Different scanning steps based on mode
+    const moldScanSteps = [
+      "Syncing hardware and software...",
+      "Initializing optical sensors...",
+      "Capturing high-resolution images...",
+      "Analyzing visual patterns...",
+      "Processing mold signatures...",
+      "Detecting spore structures...",
+      "Finalizing visual analysis..."
+    ];
+
+    const bacteriaScanSteps = [
       "Syncing hardware and software...",
       "Initializing bio-sensors...",
       "Hardware calibration in progress...",
@@ -153,6 +167,8 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
       "Processing nutrient data...",
       "Finalizing analysis..."
     ];
+    
+    const scanSteps = scanMode === 'mold' ? moldScanSteps : bacteriaScanSteps;
     
     let stepIndex = 0;
     const stepInterval = setInterval(() => {
@@ -166,8 +182,9 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
           setScanComplete(true);
           setConnectionStep("");
           
-          // Generate mock results based on selected sample or camera
-          const sampleType = cameraImage ? "camera" : (selectedSample || "uploaded");
+          // Generate mock results based on mode and sample
+          const sampleType = scanMode === 'bacteria' ? 'bacteria_sensor' : 
+                           (cameraImage ? "camera" : (selectedSample || "uploaded"));
           const results = generateMockResults(sampleType);
           setScanResults(results);
         }, 500);
@@ -180,27 +197,53 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
       sampleType,
       scanTime: new Date().toISOString(),
       overall: "safe", // safe, caution, danger
-      confidence: 0.95
+      confidence: 0.95,
+      scanMode
     };
 
-    // Simulate mold detection for camera captures
-    if (sampleType === "camera") {
+    // Bacteria sensor scanning (no image required)
+    if (sampleType === "bacteria_sensor") {
+      const hasBacteria = Math.random() > 0.6; // 40% chance of detecting bacteria
+      return {
+        ...baseResults,
+        overall: hasBacteria ? "danger" : "safe",
+        confidence: hasBacteria ? 0.92 : 0.96,
+        bacteria: {
+          detected: hasBacteria,
+          confidence: hasBacteria ? 0.94 : 0.98,
+          pathogens: hasBacteria ? ["E. coli", "Salmonella", "Listeria monocytogenes"] : [],
+          count: hasBacteria ? "1.2 × 10⁶ CFU/g" : "< 10² CFU/g"
+        },
+        toxins: {
+          detected: hasBacteria,
+          level: hasBacteria ? "moderate" : "none",
+          types: hasBacteria ? ["Endotoxins", "Enterotoxins"] : [],
+          concentration: hasBacteria ? 0.08 : 0
+        },
+        nutrients: {
+          healthScore: hasBacteria ? 25 : 88,
+          vitamins: { C: hasBacteria ? 15 : 85, A: hasBacteria ? 8 : 42, K: hasBacteria ? 5 : 35 },
+          minerals: { Iron: hasBacteria ? 12 : 52, Magnesium: hasBacteria ? 10 : 45 },
+          fiber: hasBacteria ? 5 : 22,
+          protein: hasBacteria ? 8 : 28
+        }
+      };
+    }
+
+    // Mold detection for camera captures and uploaded images
+    if (sampleType === "camera" || scanMode === 'mold') {
       const hasMold = Math.random() > 0.7; // 30% chance of detecting mold
       return {
         ...baseResults,
         overall: hasMold ? "danger" : "safe",
         confidence: hasMold ? 0.89 : 0.94,
-        bacteria: {
-          detected: hasMold,
-          confidence: hasMold ? 0.89 : 0.95,
-          pathogens: hasMold ? ["Aspergillus niger", "Penicillium"] : []
-        },
         mold: {
           detected: hasMold,
           confidence: hasMold ? 0.91 : 0.96,
-          types: hasMold ? ["Surface mold", "Fuzzy growth"] : [],
+          types: hasMold ? ["Aspergillus niger", "Penicillium", "Surface mold"] : [],
           severity: hasMold ? "moderate" : "none",
-          coverage: hasMold ? "15%" : "0%"
+          coverage: hasMold ? "15%" : "0%",
+          sporeCount: hasMold ? "High concentration" : "None detected"
         },
         toxins: {
           detected: hasMold,
@@ -298,10 +341,13 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
     setSensorConnected(false);
     setIsConnecting(false);
     setConnectionStep("");
+    setHasSample(false);
     closeCamera();
   };
 
-  const currentImage = cameraImage || uploadedImage || (selectedSample ? SAMPLE_FOODS.find(f => f.id === selectedSample)?.image : null);
+  const currentImage = scanMode === 'mold' ? 
+    (cameraImage || uploadedImage || (selectedSample ? SAMPLE_FOODS.find(f => f.id === selectedSample)?.image : null)) : 
+    null;
 
   if (scanComplete && scanResults) {
     return (
@@ -321,58 +367,132 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
           <Button variant="ghost" onClick={onBack} className="p-2">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">AI POWERED BACTERIA SCANNER</h1>
-            <p className="text-muted-foreground">Upload or select a food sample to analyze</p>
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold text-foreground">AI POWERED SCANNER</h1>
+            <p className="text-muted-foreground">Choose scanning mode and analyze your sample</p>
           </div>
         </div>
+
+        {/* Mode Selection */}
+        <Card className="shadow-card mb-8">
+          <CardHeader>
+            <CardTitle>Scanning Mode</CardTitle>
+            <CardDescription>
+              Choose between visual mold detection or sensor-based bacteria analysis
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                variant={scanMode === 'mold' ? 'default' : 'outline'}
+                onClick={() => {
+                  setScanMode('mold');
+                  resetScanner();
+                }}
+                className="h-20 flex-col space-y-2"
+              >
+                <Camera className="w-6 h-6" />
+                <div className="text-center">
+                  <div className="font-semibold">Mold Scanner</div>
+                  <div className="text-xs">Visual detection via image</div>
+                </div>
+              </Button>
+              <Button
+                variant={scanMode === 'bacteria' ? 'default' : 'outline'}
+                onClick={() => {
+                  setScanMode('bacteria');
+                  resetScanner();
+                }}
+                className="h-20 flex-col space-y-2"
+              >
+                <Cpu className="w-6 h-6" />
+                <div className="text-center">
+                  <div className="font-semibold">Bacteria Scanner</div>
+                  <div className="text-xs">Sensor-based detection</div>
+                </div>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Sample Selection */}
           <div className="space-y-6">
-            <Card className="shadow-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Upload className="w-5 h-5" />
-                  Upload Sample
-                </CardTitle>
-                <CardDescription>
-                  Upload an image of your food sample for analysis
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  ref={fileInputRef}
-                  className="hidden"
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="h-32 border-2 border-dashed border-border hover:border-primary/50"
-                  >
-                    <div className="text-center space-y-2">
-                      <Upload className="w-6 h-6 mx-auto text-muted-foreground" />
-                      <span className="text-sm">Upload Image</span>
+            {scanMode === 'mold' ? (
+              <Card className="shadow-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Upload className="w-5 h-5" />
+                    Upload Sample Image
+                  </CardTitle>
+                  <CardDescription>
+                    Upload or capture an image of your sample for visual mold detection
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    ref={fileInputRef}
+                    className="hidden"
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="h-32 border-2 border-dashed border-border hover:border-primary/50"
+                    >
+                      <div className="text-center space-y-2">
+                        <Upload className="w-6 h-6 mx-auto text-muted-foreground" />
+                        <span className="text-sm">Upload Image</span>
+                      </div>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      onClick={openCamera}
+                      className="h-32 border-2 border-dashed border-border hover:border-primary/50"
+                    >
+                      <div className="text-center space-y-2">
+                        <Camera className="w-6 h-6 mx-auto text-muted-foreground" />
+                        <span className="text-sm">Use Camera</span>
+                      </div>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="shadow-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Cpu className="w-5 h-5" />
+                    Bacteria Sensor Mode
+                  </CardTitle>
+                  <CardDescription>
+                    Place sample in scanner for sensor-based bacteria detection
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className={`p-6 border-2 border-dashed rounded-lg text-center ${
+                      hasSample ? 'border-primary bg-primary/5' : 'border-border'
+                    }`}>
+                      <Cpu className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Place your sample in the physical scanner chamber
+                      </p>
+                      <Button
+                        variant={hasSample ? "default" : "outline"}
+                        onClick={() => setHasSample(!hasSample)}
+                      >
+                        {hasSample ? "Sample Loaded" : "Load Sample"}
+                      </Button>
                     </div>
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    onClick={openCamera}
-                    className="h-32 border-2 border-dashed border-border hover:border-primary/50"
-                  >
-                    <div className="text-center space-y-2">
-                      <Camera className="w-6 h-6 mx-auto text-muted-foreground" />
-                      <span className="text-sm">Use Camera</span>
-                    </div>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <Card className="shadow-card">
               <CardHeader>
@@ -429,7 +549,14 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
                   <div className={`aspect-square rounded-lg border-2 bg-muted/50 flex items-center justify-center overflow-hidden ${
                     isScanning ? "scan-animation border-primary" : "border-border"
                   }`}>
-                    {currentImage ? (
+                    {scanMode === 'bacteria' ? (
+                      <div className="text-center space-y-4 text-muted-foreground">
+                        <Cpu className="w-16 h-16 mx-auto" />
+                        <p>Sensor-based scanning</p>
+                        <p className="text-sm">No image preview required</p>
+                        {hasSample && <Badge variant="secondary">Sample Loaded</Badge>}
+                      </div>
+                    ) : currentImage ? (
                       <>
                         <img 
                           src={currentImage} 
@@ -502,7 +629,11 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
                       variant="scan"
                       size="lg"
                       onClick={handleScanStart}
-                      disabled={!currentImage || isScanning}
+                      disabled={
+                        (scanMode === 'mold' && !currentImage) || 
+                        (scanMode === 'bacteria' && !hasSample) || 
+                        isScanning
+                      }
                       className="w-full"
                     >
                       {isScanning ? (
@@ -513,7 +644,7 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
                       ) : (
                         <>
                           <Zap className="w-5 h-5" />
-                          Start Bio-Analysis
+                          {scanMode === 'mold' ? 'Start Mold Analysis' : 'Start Bacteria Analysis'}
                         </>
                       )}
                     </Button>
