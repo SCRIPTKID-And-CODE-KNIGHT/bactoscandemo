@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { ArrowLeft, Upload, Camera, RotateCcw, Zap, Bluetooth, CheckCircle, AlertCircle } from "lucide-react";
+import { ArrowLeft, Upload, Camera, RotateCcw, Zap, Activity, CheckCircle, AlertCircle, Cpu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -113,8 +113,8 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
     const steps = [
       "Initializing connection...",
       "Detecting BioScanner device...",
-      "Establishing Bluetooth link...",
-      "Calibrating sensors...",
+      "Establishing sensor link...",
+      "Calibrating biosensors...",
       "Connection established"
     ];
     
@@ -141,11 +141,15 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
     setIsScanning(true);
     setScanComplete(false);
     
-    // Simulate scanning process with sensor steps
+    // Simulate scanning process with hardware/software syncing
     const scanSteps = [
+      "Syncing hardware and software...",
       "Initializing bio-sensors...",
+      "Hardware calibration in progress...",
       "Analyzing bacterial presence...",
+      "Software processing data...",
       "Detecting toxin levels...",
+      "Hardware-software sync complete...",
       "Processing nutrient data...",
       "Finalizing analysis..."
     ];
@@ -488,7 +492,7 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
                         </>
                       ) : (
                         <>
-                          <Bluetooth className="w-5 h-5" />
+                          <Activity className="w-5 h-5" />
                           Connect BioScanner
                         </>
                       )}
