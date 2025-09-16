@@ -23,9 +23,8 @@ const Index = () => {
             <div className="space-y-8">
               <div className="space-y-4">
                 <h1 className="text-5xl font-bold tracking-tight text-foreground leading-tight">
-                  Advanced Food Safety
                   <span className="bg-gradient-primary bg-clip-text text-transparent block">
-                    BioScanner Technology
+                    AI POWERED BACTERIA SCANNER
                   </span>
                 </h1>
                 <p className="text-xl text-muted-foreground leading-relaxed">

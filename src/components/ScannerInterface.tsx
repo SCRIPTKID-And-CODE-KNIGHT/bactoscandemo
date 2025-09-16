@@ -58,13 +58,22 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
   const openCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } // Use back camera on mobile
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
       });
       setStream(mediaStream);
       setIsCameraOpen(true);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
+      
+      // Wait for video element to be ready then set the stream
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+          videoRef.current.play().catch(console.error);
+        }
+      }, 100);
     } catch (error) {
       console.error('Error accessing camera:', error);
       alert('Unable to access camera. Please ensure camera permissions are granted.');
@@ -309,7 +318,7 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">BioScanner Interface</h1>
+            <h1 className="text-3xl font-bold text-foreground">AI POWERED BACTERIA SCANNER</h1>
             <p className="text-muted-foreground">Upload or select a food sample to analyze</p>
           </div>
         </div>
@@ -579,7 +588,9 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
                   ref={videoRef}
                   autoPlay
                   playsInline
+                  muted
                   className="w-full h-full object-cover"
+                  style={{ minHeight: '320px' }}
                 />
                 <div className="absolute inset-4 border-2 border-primary/50 rounded-lg">
                   <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary"></div>
