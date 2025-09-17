@@ -186,9 +186,6 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
           const sampleType = scanMode === 'bacteria' ? 'bacteria_sensor' : 
                            (cameraImage ? "camera" : (selectedSample || "uploaded"));
           const results = generateMockResults(sampleType);
-          console.log('Generated scan results:', results);
-          console.log('Scan mode:', scanMode);
-          console.log('Sample type:', sampleType);
           setScanResults(results);
         }, 500);
       }
@@ -240,6 +237,12 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
         ...baseResults,
         overall: hasMold ? "danger" : "safe",
         confidence: hasMold ? 0.89 : 0.94,
+        bacteria: {
+          detected: false,
+          confidence: 0.95,
+          pathogens: [],
+          count: "< 10² CFU/g"
+        },
         mold: {
           detected: hasMold,
           confidence: hasMold ? 0.91 : 0.96,
@@ -270,7 +273,8 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
         bacteria: {
           detected: false,
           confidence: 0.98,
-          pathogens: []
+          pathogens: [],
+          count: "< 10² CFU/g"
         },
         toxins: {
           detected: true,
@@ -293,7 +297,8 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
         bacteria: {
           detected: true,
           confidence: 0.87,
-          pathogens: ["E. coli (trace)"]
+          pathogens: ["E. coli (trace)"],
+          count: "5.2 × 10³ CFU/ml"
         },
         toxins: {
           detected: false,
@@ -315,7 +320,8 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
         bacteria: {
           detected: false,
           confidence: 0.92,
-          pathogens: []
+          pathogens: [],
+          count: "< 10² CFU/g"
         },
         toxins: {
           detected: false,
@@ -353,7 +359,6 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
     null;
 
   if (scanComplete && scanResults) {
-    console.log('Rendering ScanResults with:', { scanComplete, scanResults });
     return (
       <ScanResults 
         results={scanResults} 
