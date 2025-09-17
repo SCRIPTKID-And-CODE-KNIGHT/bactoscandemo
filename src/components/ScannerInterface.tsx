@@ -186,6 +186,9 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
           const sampleType = scanMode === 'bacteria' ? 'bacteria_sensor' : 
                            (cameraImage ? "camera" : (selectedSample || "uploaded"));
           const results = generateMockResults(sampleType);
+          console.log('Generated scan results:', results);
+          console.log('Scan mode:', scanMode);
+          console.log('Sample type:', sampleType);
           setScanResults(results);
         }, 500);
       }
@@ -350,6 +353,7 @@ const ScannerInterface = ({ onBack }: ScannerInterfaceProps) => {
     null;
 
   if (scanComplete && scanResults) {
+    console.log('Rendering ScanResults with:', { scanComplete, scanResults });
     return (
       <ScanResults 
         results={scanResults} 
