@@ -102,52 +102,97 @@ const ScanResults = ({ results, onBack, onNewScan }: ScanResultsProps) => {
         </Card>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Bacteria Detection */}
+          {/* Mold/Bacteria Detection - Dynamic based on scan type */}
           <Card className="shadow-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-primary" />
-                Bacteria Detection
+                {results.mold ? "Mold Detection" : "Bacteria Detection"}
               </CardTitle>
               <CardDescription>
-                Pathogen analysis and contamination assessment
+                {results.mold ? "Visual mold analysis and contamination assessment" : "Pathogen analysis and contamination assessment"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="font-medium">Status</span>
-                <Badge variant={results.bacteria.detected ? "destructive" : "secondary"}>
-                  {results.bacteria.detected ? "DETECTED" : "CLEAN"}
+                <Badge variant={
+                  results.mold ? 
+                    (results.mold.detected ? "destructive" : "secondary") :
+                    (results.bacteria.detected ? "destructive" : "secondary")
+                }>
+                  {results.mold ? 
+                    (results.mold.detected ? "MOLD DETECTED" : "CLEAN") :
+                    (results.bacteria.detected ? "DETECTED" : "CLEAN")
+                  }
                 </Badge>
               </div>
               
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Confidence</span>
-                  <span>{Math.round(results.bacteria.confidence * 100)}%</span>
+                  <span>{Math.round((results.mold ? results.mold.confidence : results.bacteria.confidence) * 100)}%</span>
                 </div>
-                <Progress value={results.bacteria.confidence * 100} className="h-2" />
+                <Progress value={(results.mold ? results.mold.confidence : results.bacteria.confidence) * 100} className="h-2" />
               </div>
 
-              {results.bacteria.pathogens.length > 0 && (
-                <div className="space-y-2">
-                  <span className="text-sm font-medium">Detected Pathogens:</span>
-                  {results.bacteria.pathogens.map((pathogen: string, index: number) => (
-                    <Badge key={index} variant="destructive" className="mr-2">
-                      {pathogen}
-                    </Badge>
-                  ))}
-                </div>
+              {results.mold ? (
+                <>
+                  {results.mold.detected && (
+                    <>
+                      <div className="space-y-2">
+                        <span className="text-sm font-medium">Coverage Area:</span>
+                        <div className="text-lg font-bold text-destructive">{results.mold.coverage}</div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <span className="text-sm font-medium">Spore Count:</span>
+                        <div className="text-sm text-muted-foreground">{results.mold.sporeCount}</div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <span className="text-sm font-medium">Detected Mold Types:</span>
+                        {results.mold.types.map((moldType: string, index: number) => (
+                          <Badge key={index} variant="destructive" className="mr-2 mb-1">
+                            {moldType}
+                          </Badge>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  <div className="pt-3 border-t border-border">
+                    <p className="text-sm text-muted-foreground">
+                      {results.mold.detected 
+                        ? "Visible mold contamination detected. Do not consume and dispose safely."
+                        : "No visible mold contamination detected. Sample appears clean."
+                      }
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {results.bacteria.pathogens.length > 0 && (
+                    <div className="space-y-2">
+                      <span className="text-sm font-medium">Detected Pathogens:</span>
+                      {results.bacteria.pathogens.map((pathogen: string, index: number) => (
+                        <Badge key={index} variant="destructive" className="mr-2">
+                          {pathogen}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="pt-3 border-t border-border">
+                    <p className="text-sm text-muted-foreground">
+                      {results.bacteria.detected 
+                        ? "Harmful bacteria detected. Consider proper cooking or disposal."
+                        : "No harmful bacteria detected. Sample appears clean."
+                      }
+                    </p>
+                  </div>
+                </>
               )}
-
-              <div className="pt-3 border-t border-border">
-                <p className="text-sm text-muted-foreground">
-                  {results.bacteria.detected 
-                    ? "Harmful bacteria detected. Consider proper cooking or disposal."
-                    : "No harmful bacteria detected. Sample appears clean."
-                  }
-                </p>
-              </div>
             </CardContent>
           </Card>
 
@@ -282,7 +327,15 @@ const ScanResults = ({ results, onBack, onNewScan }: ScanResultsProps) => {
               <div className="space-y-3">
                 <h4 className="font-medium text-foreground">Safety Recommendations</h4>
                 <ul className="space-y-2 text-sm text-muted-foreground">
-                  {results.overall === "safe" ? (
+                  {results.mold && results.mold.detected ? (
+                    <>
+                      <li>• Do not consume - visible mold contamination</li>
+                      <li>• Dispose of the entire sample safely</li>
+                      <li>• Clean storage areas thoroughly</li>
+                      <li>• Check other items in same storage location</li>
+                      <li>• Ensure proper ventilation and moisture control</li>
+                    </>
+                  ) : results.overall === "safe" ? (
                     <>
                       <li>• Safe for immediate consumption</li>
                       <li>• Store in appropriate conditions</li>
@@ -305,12 +358,25 @@ const ScanResults = ({ results, onBack, onNewScan }: ScanResultsProps) => {
               </div>
               
               <div className="space-y-3">
-                <h4 className="font-medium text-foreground">Nutritional Tips</h4>
+                <h4 className="font-medium text-foreground">
+                  {results.mold && results.mold.detected ? "Prevention Tips" : "Nutritional Tips"}
+                </h4>
                 <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li>• Good source of natural vitamins</li>
-                  <li>• Consider pairing with vitamin D sources</li>
-                  <li>• Part of a balanced diet</li>
-                  <li>• Regular consumption recommended</li>
+                  {results.mold && results.mold.detected ? (
+                    <>
+                      <li>• Store food in dry, cool environments</li>
+                      <li>• Use airtight containers for storage</li>
+                      <li>• Check expiration dates regularly</li>
+                      <li>• Maintain proper refrigerator temperature</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>• Good source of natural vitamins</li>
+                      <li>• Consider pairing with vitamin D sources</li>
+                      <li>• Part of a balanced diet</li>
+                      <li>• Regular consumption recommended</li>
+                    </>
+                  )}
                 </ul>
               </div>
             </div>
